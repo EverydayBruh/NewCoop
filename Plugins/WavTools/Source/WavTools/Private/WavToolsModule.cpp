@@ -1,7 +1,7 @@
 #include "Modules/ModuleManager.h"
-#include "Logging/LogMacros.h"
+#include "WavToolsLog.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogWavTools, Log, All);
+DEFINE_LOG_CATEGORY(LogWavTools);
 
 class FWavToolsModule : public IModuleInterface
 {

@@ -1,10 +1,9 @@
-#include "WavToolsBPLibrary.h"
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
 #include "HAL/PlatformFileManager.h"
 #include "Engine/Engine.h"
-
-DEFINE_LOG_CATEGORY_STATIC(LogWavTools, Log, All);
+#include "WavToolsBPLibrary.h"
+#include "WavToolsLog.h"
 
 static bool IsAbsolutePath(const FString& Path)
 {
