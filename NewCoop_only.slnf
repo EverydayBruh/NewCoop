@@ -1,0 +1,8 @@
+{
+  "solution": {
+    "path": "NewCoop.sln",
+    "projects": [
+      "Intermediate\\ProjectFiles\\NewCoop.vcxproj"
+    ]
+  }
+}
