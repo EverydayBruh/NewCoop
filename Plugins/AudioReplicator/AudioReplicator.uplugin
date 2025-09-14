@@ -1,24 +1,16 @@
 {
 	"FileVersion": 3,
 	"Version": 1,
-	"VersionName": "1.0",
-	"FriendlyName": "AudioReplicator",
-	"Description": "",
-	"Category": "Other",
-	"CreatedBy": "Vsly",
-	"CreatedByURL": "",
-	"DocsURL": "",
-	"MarketplaceURL": "",
-	"SupportURL": "",
-	"CanContainContent": true,
-	"IsBetaVersion": false,
-	"IsExperimentalVersion": false,
-	"Installed": false,
+	"VersionName": "0.1.0",
+	"FriendlyName": "Audio Replicator",
+	"Description": "Local Opus encode/decode + chunking; next steps: network replication.",
+	"Category": "Audio",
 	"Modules": [
 		{
 			"Name": "AudioReplicator",
 			"Type": "Runtime",
-			"LoadingPhase": "PreLoadingScreen"
+			"LoadingPhase": "Default"
 		}
-	]
+	],
+	"EnabledByDefault": true
 }

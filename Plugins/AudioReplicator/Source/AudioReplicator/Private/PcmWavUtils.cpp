@@ -1,14 +1,34 @@
-#include "PcmWavUtils.h"
+п»ї#include "PcmWavUtils.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "HAL/FileManager.h"
 
+// Lightweight utilities for reading and writing PCM16 WAV (RIFF/WAVE) files.
+//
+// This module provides two primary functions:
+// - PcmWav::LoadWavFileToPcm16: Parse a WAV file on disk and extract
+//   interleaved PCM16 samples, sample rate, and channel count.
+// - PcmWav::SavePcm16ToWavFile: Serialize interleaved PCM16 samples to a
+//   standard RIFF/WAVE file on disk.
+//
+// Notes and assumptions:
+// - Only uncompressed PCM format (AudioFormat = 1) is supported.
+// - Only 16-bit samples are supported.
+// - Only mono or stereo (1 or 2 channels) is supported.
+// - Endianness: WAV is little-endian; helpers read/write LE explicitly.
+// - The code performs basic validation of RIFF/WAVE headers and chunk bounds
+//   and logs warnings via UE_LOG on failure, returning false.
+//
+// The implementation avoids allocations where possible and uses simple
+// byte-wise parsing of the RIFF chunk structure.
+
 namespace
 {
-    // Читаем LE 16/32 безопасно на любой платформе
+    // Read 16/32-bit unsigned integers in little-endian from a byte pointer.
     inline uint16 ReadU16LE(const uint8* p) { return (uint16)(p[0] | (p[1] << 8)); }
     inline uint32 ReadU32LE(const uint8* p) { return (uint32)(p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24)); }
 
+    // Append 16/32-bit unsigned integers to a byte buffer in little-endian order.
     inline void WriteU16LE(TArray<uint8>& Out, uint16 v)
     {
         Out.Add((uint8)(v & 0xFF));
@@ -22,6 +42,7 @@ namespace
         Out.Add((uint8)((v >> 24) & 0xFF));
     }
 
+    // Compare 4-byte ASCII tag at p with a null-terminated C-string tag.
     inline bool Match4(const uint8* p, const char* tag)
     {
         return p[0] == (uint8)tag[0] && p[1] == (uint8)tag[1] && p[2] == (uint8)tag[2] && p[3] == (uint8)tag[3];
@@ -30,17 +51,32 @@ namespace
 
 namespace PcmWav
 {
-    // WAV (RIFF/WAVE) -> PCM16
+    /**
+     * Load a WAV (RIFF/WAVE) file from disk and decode interleaved PCM16 samples.
+     *
+     * Supported formats:
+     * - AudioFormat = 1 (PCM)
+     * - BitsPerSample = 16
+     * - Channels = 1 or 2
+     *
+     * On success, fills OutPcm with interleaved int16 samples, sets OutSR to the
+     * sample rate and OutCh to the channel count, and returns true. On failure,
+     * logs a warning and returns false with outputs cleared.
+     */
     bool LoadWavFileToPcm16(const FString& InPath, TArray<int16>& OutPcm, int32& OutSR, int32& OutCh)
     {
         OutPcm.Reset();
         OutSR = 0; OutCh = 0;
 
+        // Resolve path: default relative paths to ProjectSavedDir to avoid Engine/Binaries CWD.
         FString Path = InPath;
-        if (FPaths::FileExists(Path) == false)
+        if (FPaths::IsRelative(Path))
         {
-            // Пробуем привести к полному пути с макросами [ProjectDir], etc.
-            Path = FPaths::ConvertRelativePathToFull(FPaths::CreateStandardFilename(InPath));
+            Path = FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir(), FPaths::CreateStandardFilename(Path));
+        }
+        else
+        {
+            Path = FPaths::ConvertRelativePathToFull(FPaths::CreateStandardFilename(Path));
         }
 
         TArray<uint8> Bytes;
@@ -58,7 +94,7 @@ namespace PcmWav
         const uint8* p = Bytes.GetData();
         const uint8* end = p + Bytes.Num();
 
-        // RIFF header
+        // Validate RIFF/WAVE header
         if (!Match4(p, "RIFF"))
         {
             UE_LOG(LogTemp, Warning, TEXT("LoadWavFileToPcm16: not RIFF %s"), *Path);
@@ -72,7 +108,7 @@ namespace PcmWav
         }
         const uint8* cursor = p + 12;
 
-        // Ищем "fmt " и "data"
+        // Scan for required chunks: "fmt " and "data"
         bool haveFmt = false, haveData = false;
         int32 Channels = 0;
         int32 SampleRate = 0;
@@ -94,7 +130,7 @@ namespace PcmWav
 
             if (Match4(chunkId, "fmt "))
             {
-                // PCM fmt chunk (16 bytes for PCM)
+                // PCM format chunk (at least 16 bytes for PCM)
                 if (chunkSize < 16)
                 {
                     UE_LOG(LogTemp, Warning, TEXT("LoadWavFileToPcm16: fmt chunk too small"));
@@ -135,7 +171,7 @@ namespace PcmWav
                 haveData = true;
             }
 
-            // Чанки выравниваются по слову: pad 1 байт при нечётном размере
+            // Chunks are word-aligned: advance by size plus pad byte if size is odd.
             cursor = next + (chunkSize & 1 ? 1 : 0);
         }
 
@@ -157,7 +193,7 @@ namespace PcmWav
             return false;
         }
 
-        // Копируем как int16 LE
+        // Copy PCM payload as int16 little-endian samples (interleaved by channel).
         const int32 SampleCount = (int32)(dataSize / sizeof(int16));
         OutPcm.SetNumUninitialized(SampleCount);
         FMemory::Memcpy(OutPcm.GetData(), dataPtr, SampleCount * sizeof(int16));
@@ -168,7 +204,16 @@ namespace PcmWav
         return true;
     }
 
-    // PCM16 -> WAV (RIFF/WAVE)
+    /**
+     * Save interleaved PCM16 samples to a WAV (RIFF/WAVE) file on disk.
+     *
+     * Inputs:
+     * - Pcm: interleaved int16 samples (mono or stereo).
+     * - SR: sample rate in Hz (> 0).
+     * - Ch: channel count (1 or 2).
+     *
+     * Returns true on success, false on failure (with a warning log).
+     */
     bool SavePcm16ToWavFile(const FString& InPath, const TArray<int16>& Pcm, int32 SR, int32 Ch)
     {
         if (SR <= 0 || (Ch != 1 && Ch != 2))
@@ -181,7 +226,8 @@ namespace PcmWav
         const uint32 BlockAlign = (BitsPerSample / 8) * (uint32)Ch;
         const uint32 ByteRate = (uint32)SR * BlockAlign;
         const uint32 DataBytes = (uint32)(Pcm.Num() * sizeof(int16));
-        const uint32 FmtChunkSize = 16; // PCM
+        const uint32 FmtChunkSize = 16; // PCM fmt chunk payload size
+        // RIFF chunk size (file size - 8): "WAVE" (4) + fmt chunk (8+N) + data chunk (8+M)
         const uint32 RiffSize = 4 /*WAVE*/ + (8 + FmtChunkSize) + (8 + DataBytes);
 
         TArray<uint8> Out;
@@ -192,7 +238,7 @@ namespace PcmWav
         WriteU32LE(Out, RiffSize);
         Out.Append((const uint8*)"WAVE", 4);
 
-        // fmt chunk
+        // fmt chunk (PCM)
         Out.Append((const uint8*)"fmt ", 4);
         WriteU32LE(Out, FmtChunkSize);
         WriteU16LE(Out, 1);                 // AudioFormat = PCM
@@ -202,7 +248,7 @@ namespace PcmWav
         WriteU16LE(Out, (uint16)BlockAlign);// BlockAlign
         WriteU16LE(Out, (uint16)BitsPerSample); // BitsPerSample
 
-        // data chunk
+        // data chunk header
         Out.Append((const uint8*)"data", 4);
         WriteU32LE(Out, DataBytes);
 
@@ -213,8 +259,17 @@ namespace PcmWav
             Out.Append(Raw, DataBytes);
         }
 
-        // Убедимся, что директория существует
-        const FString FullPath = FPaths::ConvertRelativePathToFull(FPaths::CreateStandardFilename(InPath));
+        // Ensure output directory exists before writing the file. Resolve relative
+        // paths against ProjectSavedDir rather than Engine/Binaries CWD.
+        FString FullPath = InPath;
+        if (FPaths::IsRelative(FullPath))
+        {
+            FullPath = FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir(), FPaths::CreateStandardFilename(FullPath));
+        }
+        else
+        {
+            FullPath = FPaths::ConvertRelativePathToFull(FPaths::CreateStandardFilename(FullPath));
+        }
         const FString Dir = FPaths::GetPath(FullPath);
         IFileManager::Get().MakeDirectory(*Dir, /*Tree=*/true);
 
