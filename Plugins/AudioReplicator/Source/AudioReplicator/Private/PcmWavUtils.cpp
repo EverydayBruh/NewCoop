@@ -51,6 +51,64 @@ namespace
 
 namespace PcmWav
 {
+    static FString ResolveProjectPath_V3(const FString& InPath)
+    {
+        // 1) Санитизация
+        FString P = InPath;
+        P.TrimStartAndEndInline();
+        FPaths::NormalizeFilename(P); // слеши -> '/', убирает ./ и т.п.
+
+        // 2) Абсолютный путь — вернуть, слегка подчистив
+        if (!FPaths::IsRelative(P))
+        {
+            FString Abs = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*P);
+            FPaths::CollapseRelativeDirectories(Abs);
+            return Abs;
+        }
+
+        // 3) Гарантированно абсолютные базы (ф-ция возвращает FString, поэтому присваиваем)
+        auto AbsDir = [](const FString& Dir)
+        {
+            FString D = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*Dir);
+            FPaths::NormalizeDirectoryName(D);
+            return D;
+        };
+
+        const FString SavedAbs   = AbsDir(FPaths::ProjectSavedDir());
+        const FString ContentAbs = AbsDir(FPaths::ProjectContentDir());
+        const FString ProjectAbs = AbsDir(FPaths::ProjectDir());
+
+        // 4) Префиксы: Saved/, Content/, Project/ — остальное считаем Saved/
+        FString Rel = P;
+        FString BaseAbs;
+
+        if (Rel.StartsWith(TEXT("Saved/"), ESearchCase::IgnoreCase))
+        {
+            Rel.RightChopInline(6);
+            BaseAbs = SavedAbs;
+        }
+        else if (Rel.StartsWith(TEXT("Content/"), ESearchCase::IgnoreCase))
+        {
+            Rel.RightChopInline(8);
+            BaseAbs = ContentAbs;
+        }
+        else if (Rel.StartsWith(TEXT("Project/"), ESearchCase::IgnoreCase))
+        {
+            Rel.RightChopInline(8);
+            BaseAbs = ProjectAbs;
+        }
+        else
+        {
+            BaseAbs = SavedAbs; // дефолт: Saved/
+        }
+
+        // 5) Склейка без CreateStandardFilename
+        FString Full = FPaths::Combine(BaseAbs, Rel);
+        FPaths::CollapseRelativeDirectories(Full);
+        return Full;
+    }
+
+
     /**
      * Load a WAV (RIFF/WAVE) file from disk and decode interleaved PCM16 samples.
      *
@@ -65,64 +123,22 @@ namespace PcmWav
      */
     bool LoadWavFileToPcm16(const FString& InPath, TArray<int16>& OutPcm, int32& OutSR, int32& OutCh)
     {
-        OutPcm.Reset();
-        OutSR = 0; OutCh = 0;
+        OutPcm.Reset(); OutSR = 0; OutCh = 0;
 
-        // Resolve path for WAV files. Try common project directories so callers
-        // can supply a relative path without knowing the exact storage
-        // location. Resolution order:
-        //   - ProjectDir
-        //   - ProjectContentDir
-        //   - ProjectSavedDir
-        // If no candidate exists, fall back to ProjectDir.
-        FString Path = InPath;
-        if (FPaths::IsRelative(Path))
+        const FString Path = ResolveProjectPath_V3(InPath);
+        UE_LOG(LogTemp, Display, TEXT("LoadWavFileToPcm16: '%s' -> '%s'"), *InPath, *Path);
+
+        if (!FPaths::FileExists(Path))
         {
-            const FString Standard = FPaths::CreateStandardFilename(Path);
-            const TArray<FString> Bases =
-            {
-                FPaths::ProjectDir(),
-                FPaths::ProjectContentDir(),
-                FPaths::ProjectSavedDir()
-            };
-
-            FString CandidatePath;
-            for (const FString& Base : Bases)
-            {
-                const FString AbsoluteBase = FPaths::ConvertRelativePathToFull(Base);
-                FString Candidate = FPaths::Combine(AbsoluteBase, Standard);
-                Candidate = FPaths::CreateStandardFilename(Candidate);
-                if (FPaths::FileExists(Candidate))
-                {
-                    CandidatePath = Candidate;
-                    break;
-                }
-            }
-
-            if (CandidatePath.IsEmpty())
-            {
-                const FString AbsoluteBase = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
-                CandidatePath = FPaths::CreateStandardFilename(FPaths::Combine(AbsoluteBase, Standard));
-            }
-            Path = CandidatePath;
-        }
-        else
-        {
-            Path = FPaths::CreateStandardFilename(FPaths::ConvertRelativePathToFull(Path));
+            UE_LOG(LogTemp, Warning, TEXT("LoadWavFileToPcm16: file not found: %s"), *Path);
+            return false;
         }
 
-        // Ensure final path is standardized for downstream file operations.
-        Path = FPaths::CreateStandardFilename(Path);
 
         TArray<uint8> Bytes;
         if (!FFileHelper::LoadFileToArray(Bytes, *Path))
         {
-            UE_LOG(LogTemp, Warning, TEXT("LoadWavFileToPcm16: failed to load file %s"), *Path);
-            return false;
-        }
-        if (Bytes.Num() < 44)
-        {
-            UE_LOG(LogTemp, Warning, TEXT("LoadWavFileToPcm16: file too small %s"), *Path);
+            UE_LOG(LogTemp, Warning, TEXT("LoadWavFileToPcm16: read failed: %s"), *Path);
             return false;
         }
 
