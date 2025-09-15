@@ -68,11 +68,40 @@ namespace PcmWav
         OutPcm.Reset();
         OutSR = 0; OutCh = 0;
 
-        // Resolve path: default relative paths to ProjectSavedDir to avoid Engine/Binaries CWD.
+        // Resolve path for WAV files. Try common project directories so callers
+        // can supply a relative path without knowing the exact storage
+        // location. Resolution order:
+        //   - ProjectDir
+        //   - ProjectContentDir
+        //   - ProjectSavedDir
+        // If no candidate exists, fall back to ProjectDir.
         FString Path = InPath;
         if (FPaths::IsRelative(Path))
         {
-            Path = FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir(), FPaths::CreateStandardFilename(Path));
+            const FString Standard = FPaths::CreateStandardFilename(Path);
+            const TArray<FString> Bases =
+            {
+                FPaths::ProjectDir(),
+                FPaths::ProjectContentDir(),
+                FPaths::ProjectSavedDir()
+            };
+
+            FString CandidatePath;
+            for (const FString& Base : Bases)
+            {
+                const FString Candidate = FPaths::ConvertRelativePathToFull(Base, Standard);
+                if (FPaths::FileExists(Candidate))
+                {
+                    CandidatePath = Candidate;
+                    break;
+                }
+            }
+
+            if (CandidatePath.IsEmpty())
+            {
+                CandidatePath = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir(), Standard);
+            }
+            Path = CandidatePath;
         }
         else
         {
