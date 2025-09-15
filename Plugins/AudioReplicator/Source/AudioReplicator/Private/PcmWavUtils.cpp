@@ -68,16 +68,51 @@ namespace PcmWav
         OutPcm.Reset();
         OutSR = 0; OutCh = 0;
 
-        // Resolve path: default relative paths to ProjectSavedDir to avoid Engine/Binaries CWD.
+        // Resolve path for WAV files. Try common project directories so callers
+        // can supply a relative path without knowing the exact storage
+        // location. Resolution order:
+        //   - ProjectDir
+        //   - ProjectContentDir
+        //   - ProjectSavedDir
+        // If no candidate exists, fall back to ProjectDir.
         FString Path = InPath;
         if (FPaths::IsRelative(Path))
         {
-            Path = FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir(), FPaths::CreateStandardFilename(Path));
+            const FString Standard = FPaths::CreateStandardFilename(Path);
+            const TArray<FString> Bases =
+            {
+                FPaths::ProjectDir(),
+                FPaths::ProjectContentDir(),
+                FPaths::ProjectSavedDir()
+            };
+
+            FString CandidatePath;
+            for (const FString& Base : Bases)
+            {
+                const FString AbsoluteBase = FPaths::ConvertRelativePathToFull(Base);
+                FString Candidate = FPaths::Combine(AbsoluteBase, Standard);
+                Candidate = FPaths::CreateStandardFilename(Candidate);
+                if (FPaths::FileExists(Candidate))
+                {
+                    CandidatePath = Candidate;
+                    break;
+                }
+            }
+
+            if (CandidatePath.IsEmpty())
+            {
+                const FString AbsoluteBase = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
+                CandidatePath = FPaths::CreateStandardFilename(FPaths::Combine(AbsoluteBase, Standard));
+            }
+            Path = CandidatePath;
         }
         else
         {
-            Path = FPaths::ConvertRelativePathToFull(FPaths::CreateStandardFilename(Path));
+            Path = FPaths::CreateStandardFilename(FPaths::ConvertRelativePathToFull(Path));
         }
+
+        // Ensure final path is standardized for downstream file operations.
+        Path = FPaths::CreateStandardFilename(Path);
 
         TArray<uint8> Bytes;
         if (!FFileHelper::LoadFileToArray(Bytes, *Path))
