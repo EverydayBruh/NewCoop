@@ -192,3 +192,91 @@ FString UAudioReplicatorBPLibrary::OpusStreamHeaderToString(const FOpusStreamHea
         Header.FrameMs,
         Header.NumPackets);
 }
+
+static FString JoinIntArray(const TArray<int32>& Values)
+{
+    FString Result;
+    for (int32 i = 0; i < Values.Num(); ++i)
+    {
+        Result += FString::Printf(TEXT("%d"), Values[i]);
+        if (i + 1 < Values.Num())
+        {
+            Result += TEXT(", ");
+        }
+    }
+    return Result;
+}
+
+FString UAudioReplicatorBPLibrary::FormatOutgoingDebugReport(const FAudioReplicatorOutgoingDebug& DebugInfo)
+{
+    FString Out;
+    Out += TEXT("=== Audio Replicator · Outgoing ===\n");
+    Out += FString::Printf(TEXT("Session: %s\n"), *DebugInfo.SessionId.ToString(EGuidFormats::DigitsWithHyphens));
+    Out += FString::Printf(TEXT("%s\n"), *OpusStreamHeaderToString(DebugInfo.Header));
+    Out += FString::Printf(TEXT("Chunks: total=%d  sent=%d  pending=%d  next=%d\n"),
+        DebugInfo.TotalChunks,
+        DebugInfo.SentChunks,
+        DebugInfo.PendingChunks,
+        DebugInfo.NextChunkIndex);
+    Out += FString::Printf(TEXT("Buffer: %d bytes  Dur≈%s s  Bitrate≈%s kbps\n"),
+        DebugInfo.TotalBytes,
+        *FmtF(DebugInfo.EstimatedDurationSec, 3),
+        *FmtF(DebugInfo.EstimatedBitrateKbps, 2));
+    Out += FString::Printf(TEXT("HeaderSent=%s  EndSent=%s  Completed=%s\n"),
+        DebugInfo.bHeaderSent ? TEXT("true") : TEXT("false"),
+        DebugInfo.bEndSent ? TEXT("true") : TEXT("false"),
+        DebugInfo.bTransferComplete ? TEXT("true") : TEXT("false"));
+
+    if (DebugInfo.PendingChunkIndices.Num() > 0)
+    {
+        Out += FString::Printf(TEXT("Pending indices: %s\n"), *JoinIntArray(DebugInfo.PendingChunkIndices));
+    }
+
+    Out += TEXT("\n--- Chunk Details ---\n");
+    for (const FAudioReplicatorChunkDebug& Chunk : DebugInfo.Chunks)
+    {
+        Out += FString::Printf(TEXT("[%d] size=%d B  sent=%s\n"),
+            Chunk.Index,
+            Chunk.SizeBytes,
+            Chunk.bIsSent ? TEXT("yes") : TEXT("no"));
+    }
+
+    return Out;
+}
+
+FString UAudioReplicatorBPLibrary::FormatIncomingDebugReport(const FAudioReplicatorIncomingDebug& DebugInfo)
+{
+    FString Out;
+    Out += TEXT("=== Audio Replicator · Incoming ===\n");
+    Out += FString::Printf(TEXT("Session: %s\n"), *DebugInfo.SessionId.ToString(EGuidFormats::DigitsWithHyphens));
+    Out += FString::Printf(TEXT("%s\n"), *OpusStreamHeaderToString(DebugInfo.Header));
+    Out += FString::Printf(TEXT("State: Started=%s  Ended=%s  Ready=%s\n"),
+        DebugInfo.bStarted ? TEXT("true") : TEXT("false"),
+        DebugInfo.bEnded ? TEXT("true") : TEXT("false"),
+        DebugInfo.bReadyToAssemble ? TEXT("true") : TEXT("false"));
+    Out += FString::Printf(TEXT("Chunks: received-msgs=%d  unique=%d  expected=%d  missing=%d\n"),
+        DebugInfo.ReceivedChunks,
+        DebugInfo.UniqueChunks,
+        DebugInfo.ExpectedChunks,
+        DebugInfo.MissingChunks);
+    Out += FString::Printf(TEXT("Buffer: %d bytes  Dur≈%s s  Bitrate≈%s kbps\n"),
+        DebugInfo.TotalBytes,
+        *FmtF(DebugInfo.EstimatedDurationSec, 3),
+        *FmtF(DebugInfo.EstimatedBitrateKbps, 2));
+
+    if (DebugInfo.MissingChunkIndices.Num() > 0)
+    {
+        Out += FString::Printf(TEXT("Missing indices: %s\n"), *JoinIntArray(DebugInfo.MissingChunkIndices));
+    }
+
+    Out += TEXT("\n--- Chunk Details ---\n");
+    for (const FAudioReplicatorChunkDebug& Chunk : DebugInfo.Chunks)
+    {
+        Out += FString::Printf(TEXT("[%d] size=%d B  received=%s\n"),
+            Chunk.Index,
+            Chunk.SizeBytes,
+            Chunk.bIsReceived ? TEXT("yes") : TEXT("no"));
+    }
+
+    return Out;
+}

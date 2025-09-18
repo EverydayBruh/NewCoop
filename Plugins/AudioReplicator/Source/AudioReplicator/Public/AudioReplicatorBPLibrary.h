@@ -1,6 +1,7 @@
 #pragma once
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "OpusTypes.h"
+#include "AudioReplicatorDebugTypes.h"
 #include "AudioReplicatorBPLibrary.generated.h"
 
 UCLASS()
@@ -43,4 +44,10 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "AudioReplicator|Debug")
     static FString OpusStreamHeaderToString(const FOpusStreamHeader& Header);
+
+    UFUNCTION(BlueprintPure, Category = "AudioReplicator|Debug")
+    static FString FormatOutgoingDebugReport(const FAudioReplicatorOutgoingDebug& DebugInfo);
+
+    UFUNCTION(BlueprintPure, Category = "AudioReplicator|Debug")
+    static FString FormatIncomingDebugReport(const FAudioReplicatorIncomingDebug& DebugInfo);
 };
