@@ -121,7 +121,6 @@ Attach to a **replicated actor** (prefer `PlayerController`).
 * `StartBroadcastOpus(Packets[], Header) -> SessionId:Guid, ok`
 * `CancelBroadcast(SessionId)`
 * `GetReceivedPackets(SessionId) -> Packets[], Header, ok`
-* *(Optional helper suggested)* `IsTransferComplete(SessionId) -> Received, Expected, isComplete`
 
 **RPCs (internal)**
 
@@ -136,16 +135,7 @@ Attach to a **replicated actor** (prefer `PlayerController`).
 
 ## Networking Semantics & Rationale
 
-1. **Packet-Loss Concealment (PLC) Hazard**
 
-   * Opus **synthesizes audio** for missing frames if you decode an empty packet — duration **bloats** and audio sounds broken.
-   * **Mitigation in code**: never append empty frames to the decode list; treat missing indices as absent (skip during decode).
-   * On the receiver side we track `Received` separately and **ignore duplicates**.
-
-2. **Throughput Control**
-
-   * `MaxPacketsPerTick` throttles how many frames are sent per tick from the owning client to the server.
-   * Typical frame size at 20 ms is a few hundred bytes → one chunk per RPC.
 
 ---
 
@@ -212,13 +202,6 @@ Attach to a **replicated actor** (prefer `PlayerController`).
 * Avoid writing to arbitrary file paths from untrusted inputs.
 * Never decode empty packets (prevents PLC inflating content).
 
----
-
-## Glossary
-
-* **PLC**: Packet-Loss Concealment — Opus synthesizes audio for missing frames; useful in live chat, harmful for file-accurate transfers if empty frames are fed into the decoder.
-* **Owning client**: the client that owns the actor/component; only it should initiate `Server_*` RPCs for this flow.
-* **Reliable/Unreliable**: UE RPC delivery semantics; see Networking Semantics above.
 
 ---
 
