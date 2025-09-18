@@ -122,6 +122,139 @@ bool UAudioReplicatorComponent::GetReceivedPackets(const FGuid& SessionId, TArra
     return false;
 }
 
+bool UAudioReplicatorComponent::GetOutgoingDebugInfo(const FGuid& SessionId, FAudioReplicatorOutgoingDebug& OutDebug) const
+{
+    if (const FOutgoingTransfer* Tr = Outgoing.Find(SessionId))
+    {
+        OutDebug = FAudioReplicatorOutgoingDebug();
+        OutDebug.SessionId = SessionId;
+        OutDebug.Header = Tr->Header;
+        OutDebug.TotalChunks = Tr->Chunks.Num();
+        OutDebug.SentChunks = FMath::Clamp(Tr->NextIndex, 0, OutDebug.TotalChunks);
+        OutDebug.PendingChunks = FMath::Max(0, OutDebug.TotalChunks - OutDebug.SentChunks);
+        OutDebug.NextChunkIndex = FMath::Clamp(Tr->NextIndex, 0, OutDebug.TotalChunks);
+        OutDebug.bHeaderSent = Tr->bHeaderSent;
+        OutDebug.bEndSent = Tr->bEndSent;
+
+        OutDebug.Chunks.Reset(OutDebug.TotalChunks);
+        OutDebug.PendingChunkIndices.Reset();
+
+        int32 TotalBytes = 0;
+        for (int32 i = 0; i < Tr->Chunks.Num(); ++i)
+        {
+            const FOpusChunk& Chunk = Tr->Chunks[i];
+
+            FAudioReplicatorChunkDebug ChunkDebug;
+            ChunkDebug.Index = Chunk.Index;
+            ChunkDebug.SizeBytes = Chunk.Packet.Data.Num();
+            ChunkDebug.bIsSent = (i < Tr->NextIndex);
+            ChunkDebug.bIsReceived = false;
+
+            TotalBytes += ChunkDebug.SizeBytes;
+            if (!ChunkDebug.bIsSent)
+            {
+                OutDebug.PendingChunkIndices.Add(ChunkDebug.Index);
+            }
+
+            OutDebug.Chunks.Add(ChunkDebug);
+        }
+
+        OutDebug.TotalBytes = TotalBytes;
+        OutDebug.EstimatedDurationSec = (Tr->Header.FrameMs > 0)
+            ? (OutDebug.TotalChunks * Tr->Header.FrameMs) / 1000.0f
+            : 0.0f;
+
+        if (OutDebug.EstimatedDurationSec > 0.0f)
+        {
+            OutDebug.EstimatedBitrateKbps = (TotalBytes * 8.0f / OutDebug.EstimatedDurationSec) / 1000.0f;
+        }
+        else
+        {
+            OutDebug.EstimatedBitrateKbps = 0.0f;
+        }
+
+        OutDebug.bTransferComplete = (OutDebug.TotalChunks > 0)
+            ? (OutDebug.SentChunks >= OutDebug.TotalChunks && Tr->bEndSent)
+            : Tr->bEndSent;
+
+        return true;
+    }
+    return false;
+}
+
+bool UAudioReplicatorComponent::GetIncomingDebugInfo(const FGuid& SessionId, FAudioReplicatorIncomingDebug& OutDebug) const
+{
+    if (const FIncomingTransfer* In = Incoming.Find(SessionId))
+    {
+        OutDebug = FAudioReplicatorIncomingDebug();
+        OutDebug.SessionId = SessionId;
+        OutDebug.Header = In->Header;
+        OutDebug.bStarted = In->bStarted;
+        OutDebug.bEnded = In->bEnded;
+        OutDebug.ReceivedChunks = In->Received;
+
+        OutDebug.ExpectedChunks = (In->Header.NumPackets > 0) ? In->Header.NumPackets : 0;
+        const int32 DisplayChunkCount = (OutDebug.ExpectedChunks > 0) ? OutDebug.ExpectedChunks : In->Packets.Num();
+
+        OutDebug.Chunks.Reset(DisplayChunkCount);
+        OutDebug.MissingChunkIndices.Reset();
+
+        int32 UniqueChunks = 0;
+        int32 TotalBytes = 0;
+
+        for (int32 Index = 0; Index < DisplayChunkCount; ++Index)
+        {
+            FAudioReplicatorChunkDebug ChunkDebug;
+            ChunkDebug.Index = Index;
+            ChunkDebug.bIsSent = false;
+            ChunkDebug.bIsReceived = false;
+
+            if (Index < In->Packets.Num())
+            {
+                const FOpusPacket& Packet = In->Packets[Index];
+                ChunkDebug.SizeBytes = Packet.Data.Num();
+                if (ChunkDebug.SizeBytes > 0)
+                {
+                    ChunkDebug.bIsReceived = true;
+                    ++UniqueChunks;
+                    TotalBytes += ChunkDebug.SizeBytes;
+                }
+            }
+
+            if (!ChunkDebug.bIsReceived && OutDebug.ExpectedChunks > 0)
+            {
+                OutDebug.MissingChunkIndices.Add(Index);
+            }
+
+            OutDebug.Chunks.Add(ChunkDebug);
+        }
+
+        OutDebug.UniqueChunks = UniqueChunks;
+        OutDebug.TotalBytes = TotalBytes;
+        OutDebug.MissingChunks = (OutDebug.ExpectedChunks > 0)
+            ? FMath::Max(0, OutDebug.ExpectedChunks - UniqueChunks)
+            : 0;
+
+        OutDebug.EstimatedDurationSec = (In->Header.FrameMs > 0)
+            ? (UniqueChunks * In->Header.FrameMs) / 1000.0f
+            : 0.0f;
+
+        if (OutDebug.EstimatedDurationSec > 0.0f)
+        {
+            OutDebug.EstimatedBitrateKbps = (TotalBytes * 8.0f / OutDebug.EstimatedDurationSec) / 1000.0f;
+        }
+        else
+        {
+            OutDebug.EstimatedBitrateKbps = 0.0f;
+        }
+
+        OutDebug.bReadyToAssemble = OutDebug.bEnded && (OutDebug.ExpectedChunks == 0 || OutDebug.MissingChunks == 0);
+
+        return true;
+    }
+    return false;
+}
+
 void UAudioReplicatorComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);

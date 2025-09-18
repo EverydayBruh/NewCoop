@@ -2,6 +2,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "OpusTypes.h"
+#include "AudioReplicatorDebugTypes.h"
 #include "AudioReplicatorComponent.generated.h"
 
 // Blueprint delegates for monitoring replicated Opus sessions.
@@ -69,6 +70,13 @@ public:
     // Access the received data for a session (e.g., to decode and save a WAV).
     UFUNCTION(BlueprintCallable, Category = "AudioReplicator|Net")
     bool GetReceivedPackets(const FGuid& SessionId, TArray<FOpusPacket>& OutPackets, FOpusStreamHeader& OutHeader) const;
+
+    // Debug helpers that expose the current state of transfers without having to gather data manually.
+    UFUNCTION(BlueprintCallable, Category = "AudioReplicator|Debug")
+    bool GetOutgoingDebugInfo(const FGuid& SessionId, FAudioReplicatorOutgoingDebug& OutDebug) const;
+
+    UFUNCTION(BlueprintCallable, Category = "AudioReplicator|Debug")
+    bool GetIncomingDebugInfo(const FGuid& SessionId, FAudioReplicatorIncomingDebug& OutDebug) const;
 
 protected:
     virtual void BeginPlay() override;
