@@ -28,7 +28,7 @@ struct FOpusStreamHeader
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AudioReplicator")
     int32 FrameMs = 20;
 
-    // Необязательно, но удобно для клиентской предбуферизации/прогресса
+    // Optional but handy for client-side buffering and progress tracking.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AudioReplicator")
     int32 NumPackets = 0;
 };
@@ -38,11 +38,11 @@ struct FOpusChunk
 {
     GENERATED_BODY()
 
-    // Порядковый номер фрейма (с 0)
+    // Sequential frame index starting from zero.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AudioReplicator")
     int32 Index = 0;
 
-    // Один Opus-фрейм
+    // Single Opus frame payload.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AudioReplicator")
     FOpusPacket Packet;
 };

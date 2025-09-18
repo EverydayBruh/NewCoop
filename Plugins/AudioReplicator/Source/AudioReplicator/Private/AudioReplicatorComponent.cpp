@@ -1,7 +1,7 @@
 #include "AudioReplicatorComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/PlayerController.h"
-#include "AudioReplicatorBPLibrary.h" // используем наши локальные ноды для кодирования/декодирования
+#include "AudioReplicatorBPLibrary.h" // leverage local blueprint helpers for encoding/decoding
 
 UAudioReplicatorComponent::UAudioReplicatorComponent()
 {
@@ -77,7 +77,7 @@ bool UAudioReplicatorComponent::StartBroadcastOpus(const TArray<FOpusPacket>& Pa
 
     Outgoing.Add(SessionId, MoveTemp(Tr));
 
-    // Отправим заголовок сразу
+    // Send the header right away
     Server_StartTransfer(SessionId, Header);
     Outgoing[SessionId].bHeaderSent = true;
 
@@ -97,7 +97,7 @@ void UAudioReplicatorComponent::CancelBroadcast(const FGuid& SessionId)
 {
     if (FOutgoingTransfer* Tr = Outgoing.Find(SessionId))
     {
-        // Отправим завершение, если ещё не отправлено
+        // Send the end marker if it has not been sent yet
         if (!Tr->bEndSent && Tr->bHeaderSent)
         {
             Server_EndTransfer(SessionId);
@@ -115,7 +115,7 @@ bool UAudioReplicatorComponent::GetReceivedPackets(const FGuid& SessionId, TArra
         OutHeader = In->Header;
         return true;
 #if 0
-        // При желании можно очищать после чтения
+        // Optional: clear the cache after reading
         Incoming.Remove(SessionId);
 #endif
     }
@@ -128,7 +128,7 @@ void UAudioReplicatorComponent::TickComponent(float DeltaTime, ELevelTick TickTy
 
     if (!IsOwnerClient()) return;
 
-    // Рассылаем очереди исходящих
+    // Pump outgoing queues
     TArray<FGuid> ToFinish;
     for (auto& KV : Outgoing)
     {
@@ -194,11 +194,11 @@ void UAudioReplicatorComponent::Multicast_SendChunk_Implementation(const FGuid& 
     FIncomingTransfer& In = Incoming.FindOrAdd(SessionId);
     if (!In.bStarted)
     {
-        // Защита на случай рассинхронизации: инициируем пустой Header по умолчанию
+        // Safety guard: mark the transfer as started even if the header went missing
         In.bStarted = true;
     }
 
-    // Гарантируем место
+    // Ensure the array has enough room
     if (In.Header.NumPackets > 0 && In.Packets.Num() < In.Header.NumPackets)
         In.Packets.SetNum(In.Header.NumPackets);
 
@@ -208,7 +208,7 @@ void UAudioReplicatorComponent::Multicast_SendChunk_Implementation(const FGuid& 
     }
     else
     {
-        // Если NumPackets неизвестно — просто пушим по порядку
+        // When NumPackets is unknown, append sequentially
         In.Packets.Add(Chunk.Packet);
     }
 
@@ -225,7 +225,7 @@ void UAudioReplicatorComponent::Multicast_EndTransfer_Implementation(const FGuid
     OnTransferEnded.Broadcast(SessionId);
 }
 
-// Реплика свойств не используем, но хук оставим на будущее
+// No replicated properties yet, but keep the hook for future use
 void UAudioReplicatorComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);

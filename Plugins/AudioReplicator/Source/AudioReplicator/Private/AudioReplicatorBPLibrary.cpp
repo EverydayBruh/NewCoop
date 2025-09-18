@@ -1,4 +1,4 @@
-﻿#include "AudioReplicatorBPLibrary.h"
+#include "AudioReplicatorBPLibrary.h"
 #include "OpusCodec.h"
 #include "PcmWavUtils.h"
 #include "Chunking.h"
@@ -119,40 +119,40 @@ FString UAudioReplicatorBPLibrary::FormatAudioTestReport(
     int32 BufferBytes,
     int32 PacketCount)
 {
-    // Безопасность и подготовка
+    // Sanity checks and preparation
     const int32 Ch = FMath::Max(1, Channels);
     const int32 SR = FMath::Max(1, SampleRate);
-    const int32 FrmMs = FMath::Clamp(FrameMs, 2, 120); // обычно 2.5/5/10/20/40/60
+    const int32 FrmMs = FMath::Clamp(FrameMs, 2, 120); // typically 2.5/5/10/20/40/60
     const double Den = double(SR) * double(Ch);
 
     const int32 FrameSampPerCh = (SR / 1000) * FrmMs;
     const int32 FrameSampTotal = FrameSampPerCh * Ch;
 
-    // Продолжительности
+    // Durations
     const double DurInSec = Den > 0.0 ? double(PcmSamplesTotal) / Den : 0.0;
     const double DurOutSec = (DecPcmSamplesTotal >= 0 && Den > 0.0) ? double(DecPcmSamplesTotal) / Den : -1.0;
 
-    // Хвост (некратно фрейму)
+    // Tail samples that do not align with a full frame
     const int32 TailSamples = (FrameSampTotal > 0) ? (PcmSamplesTotal % FrameSampTotal) : 0;
     const double TailMs = Den > 0.0 ? (double)TailSamples * 1000.0 / Den : 0.0;
 
-    // Размеры/компрессия
+    // Sizes and compression
     const int64 PcmBytes = int64(PcmSamplesTotal) * 2; // int16
-    const double Ratio = (PcmBytes > 0) ? (double)BufferBytes / (double)PcmBytes : 0.0; // <1 — лучше
+    const double Ratio = (PcmBytes > 0) ? (double)BufferBytes / (double)PcmBytes : 0.0; // <1 is better
     const double SavedPct = (PcmBytes > 0) ? (1.0 - Ratio) * 100.0 : 0.0;
 
-    // Пакеты
+    // Packets
     const double AvgPktBytes = (PacketCount > 0) ? double(BufferBytes) / double(PacketCount) : 0.0;
     const double PktsPerSec = (DurInSec > 0.0) ? double(PacketCount) / DurInSec : 0.0;
     const double ExpPktCount = (DurInSec > 0.0 && FrmMs > 0) ? DurInSec * (1000.0 / double(FrmMs)) : 0.0;
     const double PktCountDiff = double(PacketCount) - ExpPktCount;
 
-    // «Эффективный» средний битрейт по результирующему буферу
+    // "Effective" average bitrate based on the resulting buffer
     const double EffKbps = (DurInSec > 0.0) ? (double(BufferBytes) * 8.0 / DurInSec) / 1000.0 : 0.0;
 
-    // Итоги
+    // Summary
     FString Out;
-    Out += TEXT("=== Audio Replicator · Локальный тест ===\n");
+    Out += TEXT("=== Audio Replicator · Local Test ===\n");
     Out += FString::Printf(TEXT("SR=%d Hz  Ch=%d  Frame=%d ms  Target Bitrate≈%d bps\n"),
         SR, Ch, FrmMs, BitrateKbps);
     Out += FString::Printf(TEXT("PCM: Samples=%d  Bytes=%lld  Dur≈%s s\n"),
@@ -164,21 +164,31 @@ FString UAudioReplicatorBPLibrary::FormatAudioTestReport(
             *FmtF(DurOutSec, 3),
             *FmtF(DurOutSec - DurInSec, 3));
     }
-    Out += FString::Printf(TEXT("Tail (некратно фрейму): %d samp  ≈%s ms\n"),
+    Out += FString::Printf(TEXT("Tail (non-aligned to frame): %d samp  ≈%s ms\n"),
         TailSamples, *FmtF(TailMs, 2));
 
-    Out += TEXT("\n--- Компрессия ---\n");
+    Out += TEXT("\n--- Compression ---\n");
     Out += FString::Printf(TEXT("Opus Buffer: %d bytes  Packets: %d  AvgPkt≈%s B\n"),
         BufferBytes, PacketCount, *FmtF(AvgPktBytes, 1));
     Out += FString::Printf(TEXT("Ratio (buf/pcm)≈ %s   Saved≈ %s %%\n"),
         *FmtF(Ratio, 3), *FmtF(SavedPct, 1));
-    Out += FString::Printf(TEXT("Eff. bitrate≈ %s kbps (по буферу и длительности)\n"),
+    Out += FString::Printf(TEXT("Eff. bitrate≈ %s kbps (based on buffer size and duration)\n"),
         *FmtF(EffKbps, 1));
 
-    Out += TEXT("\n--- Пакетизация ---\n");
+    Out += TEXT("\n--- Packetization ---\n");
     Out += FString::Printf(TEXT("Pkts/sec≈ %s   Expected≈ %s   Δ≈ %s\n"),
         *FmtF(PktsPerSec, 2), *FmtF(ExpPktCount, 1), *FmtF(PktCountDiff, 1));
 
-    Out += TEXT("\nHint: Δ≈0 и малый Tail — норма. Большой |Δ| или Tail → проверь кратность длины фрейму и FrameMs.\n");
+    Out += TEXT("\nHint: Δ≈0 and a small tail are expected. Large |Δ| or tail → check frame alignment and FrameMs.\n");
     return Out;
+}
+
+FString UAudioReplicatorBPLibrary::OpusStreamHeaderToString(const FOpusStreamHeader& Header)
+{
+    return FString::Printf(TEXT("Opus Header: SR=%d Hz  Ch=%d  Bitrate=%d bps  Frame=%d ms  Packets=%d"),
+        Header.SampleRate,
+        Header.Channels,
+        Header.Bitrate,
+        Header.FrameMs,
+        Header.NumPackets);
 }
