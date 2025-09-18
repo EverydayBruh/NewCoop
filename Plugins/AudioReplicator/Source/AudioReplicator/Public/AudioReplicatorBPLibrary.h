@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "OpusTypes.h"
 #include "AudioReplicatorBPLibrary.generated.h"
@@ -37,8 +37,10 @@ public:
         int32 FrameMs /*=20*/,
         int32 BitrateKbps /*=32*/,
         int32 PcmSamplesTotal,
-        int32 DecPcmSamplesTotal /*=-1 если неизвестно*/,
+        int32 DecPcmSamplesTotal /*=-1 if unknown*/,
         int32 BufferBytes,
         int32 PacketCount);
 
+    UFUNCTION(BlueprintPure, Category = "AudioReplicator|Debug")
+    static FString OpusStreamHeaderToString(const FOpusStreamHeader& Header);
 };

@@ -1,4 +1,4 @@
-﻿#include "PcmWavUtils.h"
+#include "PcmWavUtils.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "HAL/FileManager.h"
@@ -51,14 +51,14 @@ namespace
 
 namespace PcmWav
 {
-    static FString ResolveProjectPath_V3(const FString& InPath)
+    FString ResolveProjectPath_V3(const FString& InPath)
     {
-        // 1) Санитизация
+        // 1) Sanitize the incoming string and normalize slashes.
         FString P = InPath;
         P.TrimStartAndEndInline();
-        FPaths::NormalizeFilename(P); // слеши -> '/', убирает ./ и т.п.
+        FPaths::NormalizeFilename(P); // converts backslashes to '/' and removes './' sequences
 
-        // 2) Абсолютный путь — вернуть, слегка подчистив
+        // 2) If the path is already absolute, clean it up and return as-is.
         if (!FPaths::IsRelative(P))
         {
             FString Abs = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*P);
@@ -66,7 +66,7 @@ namespace PcmWav
             return Abs;
         }
 
-        // 3) Гарантированно абсолютные базы (ф-ция возвращает FString, поэтому присваиваем)
+        // 3) Build absolute project directories that will act as base roots.
         auto AbsDir = [](const FString& Dir)
         {
             FString D = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*Dir);
@@ -78,7 +78,7 @@ namespace PcmWav
         const FString ContentAbs = AbsDir(FPaths::ProjectContentDir());
         const FString ProjectAbs = AbsDir(FPaths::ProjectDir());
 
-        // 4) Префиксы: Saved/, Content/, Project/ — остальное считаем Saved/
+        // 4) Pick the appropriate base directory by prefix. Defaults to Saved/.
         FString Rel = P;
         FString BaseAbs;
 
@@ -99,10 +99,10 @@ namespace PcmWav
         }
         else
         {
-            BaseAbs = SavedAbs; // дефолт: Saved/
+            BaseAbs = SavedAbs; // fallback: Saved/
         }
 
-        // 5) Склейка без CreateStandardFilename
+        // 5) Combine the base path with the relative portion and collapse any dot segments.
         FString Full = FPaths::Combine(BaseAbs, Rel);
         FPaths::CollapseRelativeDirectories(Full);
         return Full;
@@ -312,15 +312,7 @@ namespace PcmWav
 
         // Ensure output directory exists before writing the file. Resolve relative
         // paths against ProjectSavedDir rather than Engine/Binaries CWD.
-        FString FullPath = InPath;
-        if (FPaths::IsRelative(FullPath))
-        {
-            FullPath = FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir(), FPaths::CreateStandardFilename(FullPath));
-        }
-        else
-        {
-            FullPath = FPaths::ConvertRelativePathToFull(FPaths::CreateStandardFilename(FullPath));
-        }
+        const FString FullPath = ResolveProjectPath_V3(InPath);
         const FString Dir = FPaths::GetPath(FullPath);
         IFileManager::Get().MakeDirectory(*Dir, /*Tree=*/true);
 

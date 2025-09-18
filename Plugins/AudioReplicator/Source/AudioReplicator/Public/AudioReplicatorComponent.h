@@ -4,7 +4,7 @@
 #include "OpusTypes.h"
 #include "AudioReplicatorComponent.generated.h"
 
-// Делегаты для BP
+// Blueprint delegates for monitoring replicated Opus sessions.
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnOpusTransferStarted, FGuid, SessionId, FOpusStreamHeader, Header);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnOpusChunkReceived, FGuid, SessionId, FOpusChunk, Chunk);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnOpusTransferEnded, FGuid, SessionId);
@@ -26,7 +26,7 @@ struct FIncomingTransfer
 {
     GENERATED_BODY()
     FOpusStreamHeader Header;
-    TArray<FOpusPacket> Packets; // Собираем для пост-декодирования
+    TArray<FOpusPacket> Packets; // Accumulated packets for eventual decoding.
     int32 Received = 0;
     bool bStarted = false;
     bool bEnded = false;
@@ -39,11 +39,11 @@ class AUDIOREPLICATOR_API UAudioReplicatorComponent : public UActorComponent
 public:
     UAudioReplicatorComponent();
 
-    // Сколько чанков слать за тик (защита от спама)
+    // Maximum amount of chunks to send per tick to avoid network spam.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AudioReplicator|Net")
     int32 MaxPacketsPerTick = 32;
 
-    // События
+    // Multicast events exposed to gameplay code.
     UPROPERTY(BlueprintAssignable, Category = "AudioReplicator|Net")
     FOnOpusTransferStarted OnTransferStarted;
 
@@ -53,20 +53,20 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "AudioReplicator|Net")
     FOnOpusTransferEnded OnTransferEnded;
 
-    // == BP НОДЫ: запуск трансфера ==
-    // 1) Из готовых Opus-пакетов (локально уже закодировали)
+    // == Blueprint API: transfer lifecycle ==
+    // 1) Broadcast already encoded Opus packets (client-side call).
     UFUNCTION(BlueprintCallable, Category = "AudioReplicator|Net")
     bool StartBroadcastOpus(const TArray<FOpusPacket>& Packets, FOpusStreamHeader Header, FGuid& OutSessionId);
 
-    // 2) Из WAV-файла (вызовет локальный энкодер, а затем отправку)
+    // 2) Broadcast from a WAV file (encode locally, then stream).
     UFUNCTION(BlueprintCallable, Category = "AudioReplicator|Net")
     bool StartBroadcastFromWav(const FString& WavPath, int32 Bitrate, int32 FrameMs, FGuid& OutSessionId);
 
-    // Принудительно завершить (если надо оборвать)
+    // Abort an active transfer early if required.
     UFUNCTION(BlueprintCallable, Category = "AudioReplicator|Net")
     void CancelBroadcast(const FGuid& SessionId);
 
-    // Доступ к буферу принятого потока (например, чтобы потом локально декодировать и сохранить WAV)
+    // Access the received data for a session (e.g., to decode and save a WAV).
     UFUNCTION(BlueprintCallable, Category = "AudioReplicator|Net")
     bool GetReceivedPackets(const FGuid& SessionId, TArray<FOpusPacket>& OutPackets, FOpusStreamHeader& OutHeader) const;
 
@@ -97,18 +97,18 @@ protected:
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 private:
-    // Очереди исходящих сессий у владельца
+    // Pending outgoing transfers owned by the local client.
     UPROPERTY()
     TMap<FGuid, FOutgoingTransfer> Outgoing;
 
-    // Входящие сессии, собираем на всех клиентах
+    // Incoming transfers assembled on this instance.
     UPROPERTY()
     TMap<FGuid, FIncomingTransfer> Incoming;
 
-    // Помощь: нарезать массив пакетов в чанки с индексами
+    // Helper: convert packets into indexed chunks for replication.
     static void BuildChunks(const TArray<FOpusPacket>& Packets, TArray<FOpusChunk>& OutChunks);
 
-    // Вспомогательное: локально закодировать WAV -> Opus пакеты
+    // Helper: encode a WAV file into Opus packets on the client.
     bool EncodeWavToOpusPackets(const FString& WavPath, int32 Bitrate, int32 FrameMs, TArray<FOpusPacket>& OutPackets, FOpusStreamHeader& OutHeader) const;
 
     bool IsOwnerClient() const;
