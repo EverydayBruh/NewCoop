@@ -86,7 +86,7 @@ protected:
     UFUNCTION(Server, Reliable)
     void Server_StartTransfer(const FGuid& SessionId, const FOpusStreamHeader& Header);
 
-    UFUNCTION(Server, Unreliable)
+    UFUNCTION(Server, Reliable)
     void Server_SendChunk(const FGuid& SessionId, const FOpusChunk& Chunk);
 
     UFUNCTION(Server, Reliable)
@@ -96,7 +96,7 @@ protected:
     UFUNCTION(NetMulticast, Reliable)
     void Multicast_StartTransfer(const FGuid& SessionId, const FOpusStreamHeader& Header);
 
-    UFUNCTION(NetMulticast, Unreliable)
+    UFUNCTION(NetMulticast, Reliable)
     void Multicast_SendChunk(const FGuid& SessionId, const FOpusChunk& Chunk);
 
     UFUNCTION(NetMulticast, Reliable)
