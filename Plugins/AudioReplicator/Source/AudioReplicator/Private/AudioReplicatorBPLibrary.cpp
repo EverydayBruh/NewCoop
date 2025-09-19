@@ -2,6 +2,8 @@
 #include "OpusCodec.h"
 #include "PcmWavUtils.h"
 #include "Chunking.h"
+#include "Misc/Paths.h"
+#include "HAL/FileManager.h"
 
 static void Int32ToInt16(const TArray<int32>& In, TArray<int16>& Out)
 {
@@ -36,6 +38,23 @@ static void UnwrapPackets(const TArray<FOpusPacket>& In, TArray<TArray<uint8>>& 
     {
         Out.Add(W.Data);
     }
+}
+
+FString UAudioReplicatorBPLibrary::ResolveProjectPath(const FString& Path)
+{
+    return PcmWav::ResolveProjectPath_V3(Path);
+}
+
+bool UAudioReplicatorBPLibrary::ProjectFileExists(const FString& Path)
+{
+    const FString FullPath = PcmWav::ResolveProjectPath_V3(Path);
+    return FPaths::FileExists(FullPath);
+}
+
+bool UAudioReplicatorBPLibrary::ProjectDirectoryExists(const FString& Path)
+{
+    const FString FullPath = PcmWav::ResolveProjectPath_V3(Path);
+    return IFileManager::Get().DirectoryExists(*FullPath);
 }
 
 bool UAudioReplicatorBPLibrary::LoadWavToPcm16(const FString& WavPath, TArray<int32>& OutPcm16, int32& OutSampleRate, int32& OutChannels)
