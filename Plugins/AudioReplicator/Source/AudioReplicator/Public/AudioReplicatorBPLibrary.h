@@ -31,6 +31,15 @@ public:
     UFUNCTION(BlueprintCallable, Category = "AudioReplicator|Local")
     static bool TranscodeWavToOpusAndBack(const FString& InWavPath, const FString& OutWavPath, int32 Bitrate = 32000, int32 FrameMs = 20);
 
+    UFUNCTION(BlueprintPure, Category = "AudioReplicator|Paths")
+    static FString ResolveProjectPath(const FString& Path);
+
+    UFUNCTION(BlueprintPure, Category = "AudioReplicator|Paths")
+    static bool ProjectFileExists(const FString& Path);
+
+    UFUNCTION(BlueprintPure, Category = "AudioReplicator|Paths")
+    static bool ProjectDirectoryExists(const FString& Path);
+
     UFUNCTION(BlueprintCallable, Category = "AudioReplicator|Debug")
     static FString FormatAudioTestReport(
         int32 SampleRate,
