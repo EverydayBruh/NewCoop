@@ -18,7 +18,26 @@ bool UAudioReplicatorComponent::IsOwnerClient() const
 {
     const AActor* Owner = GetOwner();
     if (!Owner) return false;
-    return Owner->GetLocalRole() == ROLE_AutonomousProxy || Owner->GetLocalRole() == ROLE_SimulatedProxy;
+    const ENetMode NetMode = GetNetMode();
+    if (NetMode == NM_Standalone)
+    {
+        // Standalone games have no networking but should still allow local broadcasts.
+        return true;
+    }
+
+    const ENetRole LocalRole = Owner->GetLocalRole();
+    if (LocalRole == ROLE_AutonomousProxy || LocalRole == ROLE_SimulatedProxy)
+    {
+        return true;
+    }
+
+    if (LocalRole == ROLE_Authority && Owner->HasLocalNetOwner())
+    {
+        // Listen servers report ROLE_Authority but the owning controller is local; treat as client-owned.
+        return true;
+    }
+
+    return false;
 }
 
 void UAudioReplicatorComponent::BuildChunks(const TArray<FOpusPacket>& Packets, TArray<FOpusChunk>& OutChunks)
