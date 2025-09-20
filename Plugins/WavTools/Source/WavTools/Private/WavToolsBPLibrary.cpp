@@ -1,8 +1,8 @@
+#include "WavToolsBPLibrary.h"
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
 #include "HAL/PlatformFileManager.h"
 #include "Engine/Engine.h"
-#include "WavToolsBPLibrary.h"
 #include "WavToolsLog.h"
 
 static bool IsAbsolutePath(const FString& Path)

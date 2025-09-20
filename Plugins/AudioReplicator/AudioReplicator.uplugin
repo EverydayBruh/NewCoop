@@ -1,0 +1,16 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.1.0",
+	"FriendlyName": "Audio Replicator",
+	"Description": "Local Opus encode/decode + chunking; next steps: network replication.",
+	"Category": "Audio",
+	"Modules": [
+		{
+			"Name": "AudioReplicator",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
+	"EnabledByDefault": true
+}
