@@ -25,3 +25,13 @@ void UMyGameUserSettings::SetMusicVolume(float Volume)
 {
 	MusicVolume = Volume;
 }
+
+void UMyGameUserSettings::SetMicThresholdValue(float Value)
+{
+	MicThresholdValue = Value;
+}
+
+void UMyGameUserSettings::SetMicVolume(float Volume)
+{
+	MicVolume = Volume;
+}

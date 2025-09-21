@@ -17,7 +17,7 @@ class NEWCOOP_API UMyGameUserSettings : public UGameUserSettings
 public:
 	UMyGameUserSettings(const FObjectInitializer& ObjectInitializer);
 
-	/** Returns the user setting for game for game master volume. */
+	/** Returns the user setting for game master volume. */
 	UFUNCTION(BlueprintPure, Category = Settings)
 	float GetMasterVolume() const { return MasterVolume; }
 
@@ -25,7 +25,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Settings)
 	void SetMasterVolume(float Volume);
 
-	/** Returns the user setting for game for game SFX volume. */
+	/** Returns the user setting for game SFX volume. */
 	UFUNCTION(BlueprintPure, Category = Settings)
 	float GetSFXVolume() const { return SFXVolume; }
 
@@ -33,13 +33,29 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Settings)
 	void SetSFXVolume(float Volume);
 
-	/** Returns the user setting for game for game music volume. */
+	/** Returns the user setting for game music volume. */
 	UFUNCTION(BlueprintPure, Category = Settings)
 	float GetMusicVolume() const { return MusicVolume; }
 
 	/** Sets the user setting for game music volume. */
 	UFUNCTION(BlueprintCallable, Category = Settings)
 	void SetMusicVolume(float Volume);
+
+	/** Returns the user setting for user's microphone threshold value. */
+	UFUNCTION(BlueprintPure, Category = Settings)
+	float GetMicThresholdValue() const { return MicThresholdValue; }
+
+	/** Sets the user setting for user's microphone threshold value. */
+	UFUNCTION(BlueprintCallable, Category = Settings)
+	void SetMicThresholdValue(float Value);
+
+	/** Returns the user setting for user's microphone volume. */
+	UFUNCTION(BlueprintPure, Category = Settings)
+	float GetMicVolume() const { return MicVolume; }
+
+	/** Sets the user setting for user's microphone volume. */
+	UFUNCTION(BlueprintCallable, Category = Settings)
+	void SetMicVolume(float Volume);
 
 protected:
 
@@ -51,5 +67,11 @@ protected:
 
 	UPROPERTY(config)
 	float MusicVolume;
+
+	UPROPERTY(config)
+	float MicThresholdValue;
+
+	UPROPERTY(config)
+	float MicVolume;
 
 };
