@@ -9,6 +9,10 @@ UMyGameUserSettings::UMyGameUserSettings(const FObjectInitializer& ObjectInitial
 	MasterVolume = 1.0f;
 	SFXVolume = 1.0f;
 	MusicVolume = 1.0f;
+	MicThresholdValue = 0.0f;
+	MicVolume = 1.0f;
+	VoiceChatVolume = 1.0f;
+	Loopback = false;
 }
 
 void UMyGameUserSettings::SetMasterVolume(float Volume)
@@ -34,4 +38,14 @@ void UMyGameUserSettings::SetMicThresholdValue(float Value)
 void UMyGameUserSettings::SetMicVolume(float Volume)
 {
 	MicVolume = Volume;
+}
+
+void UMyGameUserSettings::SetVoiceChatVolume(float Volume)
+{
+	VoiceChatVolume = Volume;
+}
+
+void UMyGameUserSettings::SetLoopback(bool Value)
+{
+	Loopback = Value;
 }

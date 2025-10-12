@@ -57,6 +57,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Settings)
 	void SetMicVolume(float Volume);
 
+	/** Sets the user setting for voice chat volume. */
+	UFUNCTION(BlueprintCallable, Category = Settings)
+	float GetVoiceChatVolume() const { return VoiceChatVolume; }
+
+	/** Sets the user setting for voice chat volume. */
+	UFUNCTION(BlueprintCallable, Category = Settings)
+	void SetVoiceChatVolume(float Volume);
+
+	/** Sets the user setting for loopback. */
+	UFUNCTION(BlueprintCallable, Category = Settings)
+	bool GetLoopback() const { return Loopback; }
+
+	/** Sets the user setting for loopback. */
+	UFUNCTION(BlueprintCallable, Category = Settings)
+	void SetLoopback(bool Value);
+
 protected:
 
     UPROPERTY(config)
@@ -73,5 +89,11 @@ protected:
 
 	UPROPERTY(config)
 	float MicVolume;
+
+	UPROPERTY(config)
+	float VoiceChatVolume;
+
+	UPROPERTY(config)
+	bool Loopback;
 
 };
