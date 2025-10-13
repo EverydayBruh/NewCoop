@@ -44,6 +44,10 @@
 			"SupportedTargetPlatforms": [
 				"Win64"
 			]
+		},
+		{
+			"Name": "BlueprintFileUtils",
+			"Enabled": true
 		}
 	],
 	"TargetPlatforms": [
