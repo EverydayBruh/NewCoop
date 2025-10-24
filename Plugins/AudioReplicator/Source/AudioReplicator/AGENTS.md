@@ -113,7 +113,7 @@ Attach to a **replicated actor** (prefer `PlayerController`).
 
 * `OnTransferStarted(SessionId:Guid, Header:FOpusStreamHeader)`
 * `OnChunkReceived(SessionId:Guid, Chunk:FOpusChunk)`
-* `OnTransferEnded(SessionId:Guid)`
+* `OnTransferEnded(Source:AudioReplicatorComponent, SessionId:Guid)`
 
 **Blueprint Calls (Owning Client)**
 

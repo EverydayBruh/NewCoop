@@ -388,7 +388,7 @@ void UAudioReplicatorComponent::Multicast_EndTransfer_Implementation(const FGuid
     {
         In->bEnded = true;
     }
-    OnTransferEnded.Broadcast(SessionId);
+    OnTransferEnded.Broadcast(this, SessionId);
 }
 
 // No replicated properties yet, but keep the hook for future use
