@@ -6,9 +6,11 @@
 #include "AudioReplicatorComponent.generated.h"
 
 // Blueprint delegates for monitoring replicated Opus sessions.
+class UAudioReplicatorComponent;
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnOpusTransferStarted, FGuid, SessionId, FOpusStreamHeader, Header);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnOpusChunkReceived, FGuid, SessionId, FOpusChunk, Chunk);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnOpusTransferEnded, FGuid, SessionId);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnOpusTransferEnded, UAudioReplicatorComponent*, Source, FGuid, SessionId);
 
 USTRUCT()
 struct FOutgoingTransfer
