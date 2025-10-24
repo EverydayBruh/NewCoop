@@ -72,7 +72,7 @@ bool UAudioReplicatorComponent::EncodeWavToOpusPackets(const FString& WavPath, i
     return true;
 }
 
-bool UAudioReplicatorComponent::StartBroadcastOpus(const TArray<FOpusPacket>& Packets, FOpusStreamHeader Header, FGuid& OutSessionId)
+bool UAudioReplicatorComponent::StartBroadcastOpus(const TArray<FOpusPacket>& Packets, FOpusStreamHeader Header, FGuid SessionId, FGuid& OutSessionId)
 {
     if (!IsOwnerClient())
     {
@@ -85,31 +85,45 @@ bool UAudioReplicatorComponent::StartBroadcastOpus(const TArray<FOpusPacket>& Pa
         return false;
     }
 
-    FGuid SessionId = FGuid::NewGuid();
-    OutSessionId = SessionId;
+    FGuid EffectiveSessionId = SessionId;
+    if (!EffectiveSessionId.IsValid())
+    {
+        EffectiveSessionId = FGuid::NewGuid();
+        while (Outgoing.Contains(EffectiveSessionId))
+        {
+            EffectiveSessionId = FGuid::NewGuid();
+        }
+    }
+    else if (Outgoing.Contains(EffectiveSessionId))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("StartBroadcastOpus: session %s is already active"), *EffectiveSessionId.ToString());
+        return false;
+    }
+
+    OutSessionId = EffectiveSessionId;
 
     FOutgoingTransfer Tr;
-    Tr.SessionId = SessionId;
+    Tr.SessionId = EffectiveSessionId;
     Tr.Header = Header;
     Tr.Header.NumPackets = Packets.Num();
     BuildChunks(Packets, Tr.Chunks);
 
-    Outgoing.Add(SessionId, MoveTemp(Tr));
+    Outgoing.Add(EffectiveSessionId, MoveTemp(Tr));
 
     // Send the header right away
-    Server_StartTransfer(SessionId, Header);
-    Outgoing[SessionId].bHeaderSent = true;
+    Server_StartTransfer(EffectiveSessionId, Header);
+    Outgoing[EffectiveSessionId].bHeaderSent = true;
 
     return true;
 }
 
-bool UAudioReplicatorComponent::StartBroadcastFromWav(const FString& WavPath, int32 Bitrate, int32 FrameMs, FGuid& OutSessionId)
+bool UAudioReplicatorComponent::StartBroadcastFromWav(const FString& WavPath, int32 Bitrate, int32 FrameMs, FGuid SessionId, FGuid& OutSessionId)
 {
     TArray<FOpusPacket> Packets;
     FOpusStreamHeader Header;
     if (!EncodeWavToOpusPackets(WavPath, Bitrate, FrameMs, Packets, Header))
         return false;
-    return StartBroadcastOpus(Packets, Header, OutSessionId);
+    return StartBroadcastOpus(Packets, Header, SessionId, OutSessionId);
 }
 
 void UAudioReplicatorComponent::CancelBroadcast(const FGuid& SessionId)

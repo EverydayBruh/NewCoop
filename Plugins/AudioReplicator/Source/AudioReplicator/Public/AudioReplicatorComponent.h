@@ -57,11 +57,11 @@ public:
     // == Blueprint API: transfer lifecycle ==
     // 1) Broadcast already encoded Opus packets (client-side call).
     UFUNCTION(BlueprintCallable, Category = "AudioReplicator|Net")
-    bool StartBroadcastOpus(const TArray<FOpusPacket>& Packets, FOpusStreamHeader Header, FGuid& OutSessionId);
+    bool StartBroadcastOpus(const TArray<FOpusPacket>& Packets, FOpusStreamHeader Header, FGuid SessionId, FGuid& OutSessionId);
 
     // 2) Broadcast from a WAV file (encode locally, then stream).
     UFUNCTION(BlueprintCallable, Category = "AudioReplicator|Net")
-    bool StartBroadcastFromWav(const FString& WavPath, int32 Bitrate, int32 FrameMs, FGuid& OutSessionId);
+    bool StartBroadcastFromWav(const FString& WavPath, int32 Bitrate, int32 FrameMs, FGuid SessionId, FGuid& OutSessionId);
 
     // Abort an active transfer early if required.
     UFUNCTION(BlueprintCallable, Category = "AudioReplicator|Net")
