@@ -1,0 +1,3 @@
+[submodule "Plugins/AudioReplicator"]
+	path = Plugins/AudioReplicator
+	url = https://github.com/EverydayBruh/AudioReplicator
