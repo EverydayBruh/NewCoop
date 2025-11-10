@@ -1,0 +1,9 @@
+Binaries/
+Intermediate/
+DerivedDataCache/
+Saved/
+.vscode/
+.idea/
+*.vs/
+*Impl.md
+.obsidian/
