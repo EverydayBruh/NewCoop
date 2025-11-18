@@ -1,3 +1,7 @@
 [submodule "Plugins/AudioReplicator"]
 	path = Plugins/AudioReplicator
 	url = https://github.com/EverydayBruh/AudioReplicator
+[submodule "Plugins/VoiceTagFX"]
+	path = Plugins/VoiceTagFX
+	url = git@github.com:VslyDream/VoiceTagFX.git
+	branch = main
